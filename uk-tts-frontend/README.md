@@ -48,7 +48,7 @@ Neither model is in this repository, and neither is small.
 
 | artifact | what it is | where it comes from |
 | --- | --- | --- |
-| Marian verbalizer checkpoint | ~200 MB, `config.json` + weights + SentencePiece | the [marian-uk-verbalizer](#related-projects) project |
+| Marian verbalizer checkpoint | ~200 MB, `config.json` + weights + SentencePiece | [`aloudreader/marian-uk-verbalizer`](https://huggingface.co/aloudreader/marian-uk-verbalizer) (E54), from the [marian-uk-verbalizer](https://github.com/vacuum-in/marian-uk-verbalizer) project |
 | stress service | PostgreSQL lexicon, cross-encoder, spaCy tagger | the [ukstress](#related-projects) project |
 
 Point `UKTTS_VERBALIZER_CHECKPOINT` at the first and `UKTTS_STRESS_URL` at the
@@ -182,7 +182,7 @@ There is no end-to-end figure because no public set scores both stages. Read
 Two upstream projects supply the models. Both are separate codebases with their
 own licences and their own data provenance; this repository vendors neither.
 
-- **marian-uk-verbalizer** — trains the Marian verbalizer. Its runtime policy is
+- **[marian-uk-verbalizer](https://github.com/vacuum-in/marian-uk-verbalizer)** — trains the Marian verbalizer; the checkpoint served here is its E54 release. Its runtime policy is
   that no hardcoded verbalization rule may exist: quality is changed by data and
   training, never by patching the model's output. This pipeline honours that.
 - **ukstress** — streams the Ukrainian Wiktionary dump into a versioned

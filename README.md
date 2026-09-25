@@ -17,7 +17,7 @@ classifier on a sentence this short. See *Results* for how often that happens.
 | directory | what |
 | --- | --- |
 | [`wiki-stress/`](wiki-stress/) | the stress service: a PostgreSQL lexicon built from the Ukrainian Wiktionary dump and the `ukrainian-word-stress` dictionary (`etl/`); a Go HTTP API (`api/`) that looks every word up and asks the model service about the ambiguous ones; the model service and every training script (`ml/`) |
-| [`uk-tts-frontend/`](uk-tts-frontend/) | a text frontend for TTS: numbers, dates and abbreviations spelled out, then stress marked by the service above; Docker Compose deployment and a Gradio UI |
+| [`uk-tts-frontend/`](uk-tts-frontend/) | a text frontend for TTS: numbers, dates and abbreviations spelled out by the [marian-uk-verbalizer](https://github.com/vacuum-in/marian-uk-verbalizer) model ([E54 on Hugging Face](https://huggingface.co/aloudreader/marian-uk-verbalizer)), then stress marked by the service above; Docker Compose deployment and a Gradio UI |
 | [`audiotostress/`](audiotostress/) | the audio side: finds which vowel a narrator stressed, from aligned speech. Its labels trained the token classifier |
 | [`model-cards/`](model-cards/) | the cards of the published models |
 
