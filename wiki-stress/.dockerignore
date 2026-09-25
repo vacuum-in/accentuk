@@ -1,0 +1,15 @@
+# The repository root is the build context for ml/Dockerfile. Without this it
+# ships 67 GB of corpora, checkpoints and database dumps to the daemon on every
+# build; the image needs `etl`, `ml` and one model directory.
+*
+!etl/
+!ml/
+!models/v3-xenc/
+
+etl/.venv/
+ml/.venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/

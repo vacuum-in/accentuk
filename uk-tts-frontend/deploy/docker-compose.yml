@@ -1,0 +1,201 @@
+# The whole frontend in one stack: PostgreSQL and the stress services from
+# ukstress, plus the verbalizer and the gateway from this repository.
+#
+# Copy deploy/.env.example to deploy/.env and set the three paths there, then:
+#   docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
+#
+# Environment values for `api` reproduce the configuration measured in the
+# ukstress project: 82.33% heteronym and 95.00% word accuracy on lang-uk's
+# benchmark. Changing any of them changes what the voice says.
+
+name: uk-tts
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ukstress
+      POSTGRES_USER: ukstress_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ukstress_owner}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ukstress_owner -d ukstress"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      # Published for lexicon queries from host scripts; the stack itself
+      # reaches it over the compose network.
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  stress-model:
+    image: uk-tts-stress-model:latest
+    build:
+      context: ${UKSTRESS_DIR:-../../wiki-stress}
+      dockerfile: ml/Dockerfile
+    # The image's own user owns the checkpoint it bakes in; the mounted one is
+    # owned by the host user, and safetensors files are written mode 600. Run
+    # as that uid or the model file is unreadable and transformers reports it
+    # as a missing file.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HF_HOME: /tmp/huggingface
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      SPACY_UK_MODEL: /app/models/uk_core_news_sm
+      MORPHOLOGY_WORKERS: "4"
+      # torch threads per call: the service answers several calls at once,
+      # and 24 threads each oversubscribe the CPU (4 measured fastest)
+      OMP_NUM_THREADS: ${MODEL_THREADS:-4}
+      MKL_NUM_THREADS: ${MODEL_THREADS:-4}
+      # Counted form after два/три/чотири. Needs both: the flag and a list of
+      # the nouns that take it, since rewriting every noun measured worse.
+      COUNTED_FORM: "${COUNTED_FORM:-0}"
+      COUNTED_FORM_LIST: /app/models/counted_forms.json
+      # The token classifier tier. Unset it and the service is what it was;
+      # set, it answers for forms on its own coverage list where the pipeline
+      # would otherwise take the dictionary default. docs/state.md in
+      # wiki-stress has the rule and the numbers on both benchmarks.
+      TOKEN_MODEL_DIR: ${TOKEN_MODEL_DIR:+/app/models/tok-v2}
+      # The learned combiner (RESULTS.md): unset, /internal/v1/combine answers 503.
+      COMBINER_DIR: ${COMBINER_DIR:+/app/models/combiner}
+    volumes:
+      # The image bakes an older checkpoint at this path; the selected one is
+      # mounted over it. Its serving manifest must sit inside that directory on
+      # the host: runc cannot create a mountpoint inside a read-only bind, so a
+      # second nested bind fails to start the container.
+      - ${STRESS_MODEL_DIR:?set STRESS_MODEL_DIR to the cross-encoder directory}:/app/models/v3-xenc:ro
+      - ${SPACY_MODEL_DIR:?set SPACY_MODEL_DIR to a spaCy Ukrainian model}:/app/models/uk_core_news_sm:ro
+      - ${COUNTED_FORM_LIST:-../../wiki-stress/output/ml/counted_forms.json}:/app/models/counted_forms.json:ro
+      - ${TOKEN_MODEL_DIR:-../../wiki-stress/models/tok-v2}:/app/models/tok-v2:ro
+      - ${COMBINER_DIR:-../../wiki-stress/models/combiner-v1}:/app/models/combiner:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+
+  api:
+    image: uk-tts-api:latest
+    build:
+      context: ${UKSTRESS_DIR:-../../wiki-stress}/api
+    environment:
+      DATABASE_URL: postgresql://ukstress_api:${API_PASSWORD:-ukstress_api}@postgres:5432/ukstress
+      LISTEN_ADDRESS: :8080
+      MODEL_URL: ${MODEL_URL_OVERRIDE:-http://stress-model:8090}
+      MODEL_MANIFEST: /etc/ukstress/serving_manifest.json
+      MODEL_TIMEOUT: 20s
+      MORPHOLOGY_TIMEOUT: 20s
+      ACTIVE_INVENTORY_HASH: ${ACTIVE_INVENTORY_HASH:?set it to the manifest's inventory_hash}
+      # 1 lets the learned combiner overrule the tier order (needs COMBINER_DIR).
+      COMBINER_ENABLED: ${COMBINER_ENABLED:-0}
+      SUPPLEMENTARY_DATASETS: ${SUPPLEMENTARY_DATASETS:-3,5,7,9,10,12,13}
+      # Datasets holding readings a person decided. They lead the trie's
+      # default instead of losing to it — without this, a correction written
+      # at full confidence is silently overruled by the statistical prior.
+      REVIEWED_DATASETS: ${REVIEWED_DATASETS:-12,13}
+      # Reviewed readings that are the only admissible one. These collapse the
+      # candidate list to a single entry, so no contextual tier is offered the
+      # form — ordering alone was not enough, because two candidates reach the
+      # model and on `маю` the model chose the reading the review rejected.
+      REVIEWED_EXCLUSIVE_DATASETS: ${REVIEWED_EXCLUSIVE_DATASETS:-13}
+      SUFFIX_TABLE: /etc/ukstress/suffix_table.json
+      TRIE_DEFAULTS: /etc/ukstress/trie_defaults_map.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stress-model:
+        condition: service_healthy
+    volumes:
+      - ${SERVING_MANIFEST:?set SERVING_MANIFEST}:/etc/ukstress/serving_manifest.json:ro
+      - ${SUFFIX_TABLE:?set SUFFIX_TABLE}:/etc/ukstress/suffix_table.json:ro
+      - ${TRIE_DEFAULTS:?set TRIE_DEFAULTS}:/etc/ukstress/trie_defaults_map.json:ro
+    ports:
+      # Only the frontend needs this, but publishing it keeps the stress tier
+      # inspectable on its own when a reading looks wrong.
+      - "${STRESS_API_PORT:-8080}:8080"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+
+  frontend:
+    image: uk-tts-frontend:latest
+    build:
+      context: ..
+    environment:
+      UKTTS_VERBALIZER_CHECKPOINT: /models/verbalizer
+      UKTTS_VERBALIZER_DEVICE: cpu
+      UKTTS_STRESS_URL: http://api:8080
+      UKTTS_ON_AMBIGUITY: default
+      # The container runs read-only as nobody, with no home directory for
+      # transformers to write a cache into. The checkpoint is local, so
+      # nothing needs fetching either.
+      HF_HOME: /tmp/huggingface
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    depends_on:
+      api:
+        condition: service_started
+    volumes:
+      - ${VERBALIZER_CHECKPOINT:?set VERBALIZER_CHECKPOINT to a Marian checkpoint}:/models/verbalizer:ro
+    ports:
+      - "${FRONTEND_PORT:-8000}:8000"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+
+  # The same image as `frontend`, running the Gradio page instead of the API.
+  # It is a client of the service over the network, so what it shows is what
+  # the service returns.
+  ui:
+    image: uk-tts-ui:latest
+    build:
+      context: ..
+    command:
+      - python
+      - -m
+      - uktts.gradio_app
+      - --api
+      - http://frontend:8000
+      - --host
+      - 0.0.0.0
+      - --port
+      - "7860"
+    environment:
+      # Nothing is loaded in this container; it only makes HTTP calls.
+      UKTTS_VERBALIZE: "0"
+      UKTTS_STRESS: "0"
+      GRADIO_ANALYTICS_ENABLED: "False"
+      GRADIO_TEMP_DIR: /tmp/gradio
+      HF_HUB_OFFLINE: "1"
+    depends_on:
+      frontend:
+        condition: service_started
+    ports:
+      - "${UI_PORT:-7861}:7860"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+
+volumes:
+  # An existing, already-published lexicon volume can be reused by declaring it
+  # external here; see docs/deployment.md. Never run two PostgreSQL servers on
+  # one data directory.
+  #
+  # The lexicon lives in deploy_postgres-data, named for the project this stack
+  # was first brought up under. Without this the name follows the current
+  # project instead, and the server starts on an empty cluster with the 21.7 GB
+  # of published data still sitting in the old volume, untouched but unread.
+  postgres-data:
+    external: true
+    name: ${POSTGRES_VOLUME:-deploy_postgres-data}

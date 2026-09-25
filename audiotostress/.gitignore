@@ -1,0 +1,5 @@
+.venv/
+artifacts/
+data/
+*.tar.gz
+__pycache__/

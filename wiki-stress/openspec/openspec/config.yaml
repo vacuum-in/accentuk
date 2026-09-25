@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Project: Ukrainian stressed-word lexicon generated from the official Ukrainian Wiktionary dump.
+  Architecture:
+    - Python owns download, parsing, linguistic extraction, normalization, validation,
+      deduplication, database migrations, bulk import, publication, reports, and exports.
+    - Go owns only the read-only HTTP lookup API over PostgreSQL.
+    - PostgreSQL is the authoritative online lookup store.
+  Core constraints:
+    - Never claim complete coverage of the Ukrainian language.
+    - Preserve legitimate ambiguity and multiple stress variants.
+    - Never execute Wiktionary templates, Lua, HTML, or dump-provided code.
+    - The Go service must not contain dump parsing, morphology extraction, import,
+      normalization-authoring, or database migration logic.
+    - Exact lookup correctness has priority over fuzzy matching.
+    - All performance claims must be measured, not invented.
+
+rules:
+  proposal:
+    - State assumptions, non-goals, migration impact, rollback strategy, and affected components.
+    - Explicitly preserve the Python/Go responsibility boundary.
+  specs:
+    - Use GIVEN/WHEN/THEN scenarios.
+    - Describe externally verifiable behavior rather than implementation details.
+    - Include failure, ambiguity, Unicode, and reproducibility scenarios.
+  design:
+    - Record data ownership, transaction boundaries, publication strategy, and performance rationale.
+    - Explain rejected alternatives.
+  tasks:
+    - Use independently verifiable checklist items.
+    - Include tests, benchmarks, security checks, documentation, and operational validation.
+
+operations:
+  apply:
+    guidance:
+      - Implement Python ETL before the Go API.
+      - Run focused tests after each task group.
+      - Do not mark performance tasks complete without attaching generated benchmark output.
+      - Do not silently broaden Go responsibilities.
+  archive:
+    guidance:
+      - Confirm all delta specs are represented in the final source-of-truth specs.
+      - Preserve actual benchmark and import statistics with the archived change.

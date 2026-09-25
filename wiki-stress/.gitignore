@@ -1,0 +1,55 @@
+# Secrets — never commit. `.env.example` documents the keys instead.
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Go build output
+api/bin/
+*.test
+
+# Generated data and artifacts.
+# `data/` holds multi-gigabyte dumps, `output/` holds the parsed lexicon,
+# mined corpus, annotation responses and model checkpoints. Both are
+# reproducible from the pipeline and are described by manifests that record
+# the source checksums.
+data/
+output/
+# Human decisions are not reproducible from the pipeline, so they are kept
+# under version control even though they sit in a directory named `data`.
+!ml/data/
+!ml/data/**
+reports/
+artifacts/
+benchmarks/*.json
+
+# Packaged bundles produced by ml/scripts/make_gpu_bundle.sh
+*.tar.gz
+
+# PostgreSQL dumps. Reproducible from the ETL, and 664 MB of them would make
+# the history unusable — restore from the server or re-import instead.
+backups/
+*.dump
+
+# The SQLite scratch copy of the lexicon; rebuilt from PostgreSQL.
+homographs.db
+
+# Runtime state, not source
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Released model weights. Not versioned: too large for git without LFS,
+# and LFS is deliberately not used here. Move them with rsync or
+# ml/scripts/make_model_bundle.sh instead.
+models/

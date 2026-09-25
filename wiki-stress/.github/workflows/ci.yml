@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same branch/PR rather than burning
+# runners on stale pushes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ukstress
+          POSTGRES_USER: ukstress_owner
+          POSTGRES_PASSWORD: ukstress_owner
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ukstress_owner -d ukstress"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: uv --directory etl sync --all-groups
+      - name: Lint
+        run: uv --directory etl run ruff check src tests
+      - name: Typecheck
+        run: uv --directory etl run mypy src tests
+      - name: Test (unit + database integration)
+        # etl's own integration tests apply db/migrations themselves and
+        # connect only as the migration owner; no separate migration step
+        # or role password is needed here.
+        env:
+          UKSTRESS_TEST_DATABASE_URL: postgresql://ukstress_owner:ukstress_owner@localhost:5432/ukstress
+        run: uv --directory etl run pytest tests
+
+  go:
+    name: Go (vet, test, race, integration)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ukstress
+          POSTGRES_USER: ukstress_owner
+          POSTGRES_PASSWORD: ukstress_owner
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ukstress_owner -d ukstress"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+      - name: gofmt check
+        run: |
+          unformatted=$(gofmt -l $(find api -name '*.go' -type f))
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would reformat:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        working-directory: api
+        run: go vet ./...
+      - name: Build
+        working-directory: api
+        run: go build -trimpath -buildvcs=false -o bin/stress-api ./cmd/stress-api
+      - name: Test (unit, no database required)
+        working-directory: api
+        run: go test ./...
+      - name: Test (race detector, no database required)
+        working-directory: api
+        run: go test -race ./...
+      - name: Test (database integration)
+        # -p 1 is required: internal/repository and internal/httpapi both
+        # mutate the single global active_dataset row against the same
+        # live database, and default per-package test parallelism would
+        # run their test binaries as racing concurrent processes. See
+        # api/internal/testdb for the full explanation.
+        working-directory: api
+        env:
+          UKSTRESS_TEST_DATABASE_URL: postgresql://ukstress_owner:ukstress_owner@localhost:5432/ukstress
+        run: go test -p 1 ./...
+
+  migration-check:
+    name: Migration and role-permission check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ukstress
+          POSTGRES_USER: ukstress_owner
+          POSTGRES_PASSWORD: ukstress_owner
+          # Trust auth only inside this throwaway, job-scoped container:
+          # db/tests/verify_migrations.sh authenticates as the ukstress_api
+          # role immediately after the migrations that create that role
+          # apply, with no step in between to set its password. Trust lets
+          # the script's placeholder API_DATABASE_URL password work
+          # without inventing an out-of-band password-injection step this
+          # script was never designed to take.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ukstress_owner -d ukstress"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+      - name: Apply migrations and verify the API role cannot write
+        env:
+          DATABASE_URL: postgresql://ukstress_owner:ukstress_owner@localhost:5432/ukstress
+          API_DATABASE_URL: postgresql://ukstress_api:unused@localhost:5432/ukstress
+        run: ./db/tests/verify_migrations.sh
+
+  dependency-scan:
+    name: Dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+      - name: Install dependencies
+        run: uv --directory etl sync --all-groups
+      - name: Audit Python dependencies
+        # Runs pip-audit inside the already-built uv venv rather than
+        # against an exported requirements.txt: pip-audit's -r mode
+        # rebuilds its own throwaway venv via ensurepip to resolve each
+        # requirement, which is slower and, on some Python distributions,
+        # outright broken. --skip-editable excludes the local ukstress-etl
+        # package itself (not published to PyPI, so unauditable there).
+        run: uv --directory etl run --with pip-audit -- pip-audit --skip-editable
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Audit Go dependencies
+        working-directory: api
+        run: govulncheck ./...
+
+  image-build:
+    name: Container image build and scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build etl image
+        uses: docker/build-push-action@v6
+        with:
+          context: etl
+          push: false
+          load: true
+          tags: ukstress-etl:ci
+      - name: Build api image
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          push: false
+          load: true
+          tags: ukstress-api:ci
+      - name: Scan etl image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ukstress-etl:ci
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Scan api image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ukstress-api:ci
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true

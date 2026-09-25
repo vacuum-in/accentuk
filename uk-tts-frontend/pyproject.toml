@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uk-tts-frontend"
+version = "0.1.0"
+description = "Ukrainian TTS text frontend: verbalization then stress placement"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["ukrainian", "tts", "text-normalization", "verbalization", "stress", "nlp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Natural Language :: Ukrainian",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+  "Topic :: Text Processing :: Linguistic",
+]
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.2",
+  "transformers>=4.40",
+  "sentencepiece>=0.2",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+service = ["fastapi>=0.111", "uvicorn>=0.30"]
+ui = ["gradio>=5"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Documentation = "https://github.com/OWNER/uk-tts-frontend#readme"
+Source = "https://github.com/OWNER/uk-tts-frontend"
+
+[project.scripts]
+uktts = "uktts.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = ["slow: loads the verbalizer checkpoint"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

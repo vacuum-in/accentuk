@@ -1,0 +1,13 @@
+alignment:
+  word_backend: canary_ctc
+  word_model_id: cstr/canary-ctc-aligner-GGUF
+  model_filename: canary-ctc-aligner-q8_0.gguf
+  model_revision: 2b22dc9aff585bc8368a5228173c8afe22c155b7
+  language: uk
+  device: cpu
+  model_cache_only: false
+  n_threads: 4
+  fine_backend: mfa
+  min_quality: 0.8
+  overlap_tolerance_s: 0.005
+

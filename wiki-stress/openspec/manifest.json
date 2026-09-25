@@ -1,0 +1,22 @@
+{
+  "change_id": "build-ukrainian-stress-lexicon",
+  "created": "2026-07-28",
+  "architecture": {
+    "python": "all ETL, linguistic processing, database lifecycle, reports, exports",
+    "go": "read-only HTTP PostgreSQL lookup API only",
+    "database": "PostgreSQL"
+  },
+  "files": [
+    "README.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/.openspec.yaml",
+    "openspec/changes/build-ukrainian-stress-lexicon/design.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/proposal.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/specs/dump-ingestion/spec.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/specs/lookup-api/spec.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/specs/operations/spec.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/specs/stress-lexicon/spec.md",
+    "openspec/changes/build-ukrainian-stress-lexicon/tasks.md",
+    "openspec/config.yaml",
+    "openspec/project.md"
+  ]
+}

@@ -1,0 +1,396 @@
+openapi: 3.0.3
+info:
+  title: Ukrainian Stress Lexicon Lookup API
+  description: >
+    Read-only HTTP lookup service over the published Ukrainian stress
+    lexicon. This service performs no dump parsing, morphology extraction,
+    import, or migration — see openspec/openspec/project.md for the
+    Python/Go architecture boundary.
+  version: "1.0.0"
+servers:
+  - url: /
+
+paths:
+  /v1/lookup:
+    get:
+      summary: Exact word lookup
+      operationId: lookup
+      parameters:
+        - name: word
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [exact, best]
+            default: exact
+      responses:
+        "200":
+          description: Lookup result (found, ambiguous, or not_found).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LookupResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/lookup:batch:
+    post:
+      summary: Batch word lookup
+      operationId: lookupBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [words]
+              properties:
+                words:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 10000
+                  description: >
+                    Every occurrence is represented in the response,
+                    including duplicates, in input order.
+                mode:
+                  type: string
+                  enum: [exact, best]
+                  default: exact
+      responses:
+        "200":
+          description: One result per input word, in input order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results, dataset_id]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LookupResult"
+                  dataset_id:
+                    type: integer
+                    format: int64
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/lemmas/{lemma}/forms:
+    get:
+      summary: Paginated exact retrieval of stored forms for a lemma
+      operationId: lemmaForms
+      parameters:
+        - name: lemma
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            description: Clamped server-side to the configured page-size maximum.
+      responses:
+        "200":
+          description: Paginated forms for the lemma.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lemma, forms, offset, limit]
+                properties:
+                  lemma:
+                    type: string
+                  forms:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LemmaForm"
+                  offset:
+                    type: integer
+                  limit:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/stress:
+    post:
+      summary: Stress full Ukrainian text
+      operationId: stressText
+      description: >
+        Performs one set-oriented database lookup and one batched contextual
+        inference call. Explicit accents and all non-stress characters are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                on_ambiguity:
+                  type: string
+                  enum: [default, preserve]
+                  default: default
+                  description: >
+                    What to emit for a word with more than one reading that the
+                    contextual model did not decide — outside its coverage, under
+                    its margin threshold, or unavailable. `default` serves the
+                    lexicon's highest-confidence reading and reports the token as
+                    `dictionary_default`; `preserve` emits the word unstressed and
+                    reports it as `ambiguous`.
+      responses:
+        "200":
+          description: Reconstructed text and a decision for every Ukrainian word.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StressResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /health/live:
+    get:
+      summary: Liveness probe
+      description: Stays healthy even when no dataset is active.
+      operationId: healthLive
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [live]
+
+  /health/ready:
+    get:
+      summary: Readiness probe
+      description: Fails when PostgreSQL is unreachable or no dataset is published.
+      operationId: healthReady
+      responses:
+        "200":
+          description: A dataset is active and lookups can be served.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /metrics:
+    get:
+      summary: Bounded-cardinality Prometheus metrics
+      operationId: metrics
+      responses:
+        "200":
+          description: Prometheus text exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /version:
+    get:
+      summary: Build and runtime version information
+      operationId: version
+      responses:
+        "200":
+          description: Service and Go runtime version.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  go_version:
+                    type: string
+
+components:
+  schemas:
+    Candidate:
+      type: object
+      required:
+        - stressed_form
+        - stress_signature
+        - lemma
+        - grammatical_tags
+        - is_lemma
+        - is_variant
+        - is_obsolete
+        - confidence
+      properties:
+        stressed_form:
+          type: string
+        stress_signature:
+          type: string
+        lemma:
+          type: string
+        stressed_lemma:
+          type: string
+          nullable: true
+        part_of_speech:
+          type: string
+          nullable: true
+        grammatical_tags:
+          type: array
+          items:
+            type: string
+        is_lemma:
+          type: boolean
+        is_variant:
+          type: boolean
+        is_obsolete:
+          type: boolean
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    LookupResult:
+      type: object
+      required:
+        - input
+        - status
+        - candidates
+        - ambiguous
+        - truncated
+        - dataset_id
+      properties:
+        input:
+          type: string
+        status:
+          type: string
+          enum: [found, ambiguous, not_found]
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Candidate"
+        ambiguous:
+          type: boolean
+        truncated:
+          type: boolean
+          description: True when candidates were cut off at the configured result limit.
+        dataset_id:
+          type: integer
+          format: int64
+
+    LemmaForm:
+      type: object
+      required: [form, stressed_form, grammatical_tags, confidence]
+      properties:
+        form:
+          type: string
+        stressed_form:
+          type: string
+        grammatical_tags:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+          format: float
+
+    StressToken:
+      type: object
+      required: [start, end, text, output_text, status]
+      properties:
+        start: {type: integer, minimum: 0, description: Unicode code-point offset}
+        end: {type: integer, minimum: 0, description: Unicode code-point offset}
+        text: {type: string}
+        output_text: {type: string}
+        status:
+          type: string
+          enum: [stressed, not_required, already_stressed, not_found, ambiguous, dictionary_default, model_ineligible, invalid_candidate]
+          description: >
+            `dictionary_default` means the pipeline held more than one reading and
+            none of them was chosen on evidence, so the lexicon's highest-confidence
+            reading was served. Request `on_ambiguity: preserve` to receive the
+            unstressed word instead.
+        candidates:
+          type: array
+          items: {type: string}
+        scores:
+          type: object
+          additionalProperties: {type: number}
+        margin: {type: number}
+
+    StressResponse:
+      type: object
+      required: [text, tokens, dataset_id, warnings]
+      properties:
+        text: {type: string}
+        tokens:
+          type: array
+          items: {$ref: "#/components/schemas/StressToken"}
+        dataset_id: {type: integer, format: int64}
+        model_version: {type: string}
+        coverage_manifest_hash: {type: string}
+        warnings:
+          type: array
+          items: {type: string}
+
+    Error:
+      type: object
+      required: [code, message, request_id]
+      description: >
+        Stable error contract. Never contains SQL text, credentials, or a
+        stack trace.
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: >
+        PostgreSQL is unreachable or no dataset is currently published.
+        Readiness fails in this state; liveness does not.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

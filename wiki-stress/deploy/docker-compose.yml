@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ukstress
+      POSTGRES_USER: ukstress_owner
+      POSTGRES_PASSWORD: ukstress_owner
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ukstress_owner -d ukstress"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  etl:
+    build:
+      context: ../etl
+    environment:
+      DATABASE_URL: postgresql://ukstress_etl:ukstress_etl@postgres:5432/ukstress
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["tools"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    build:
+      context: ../api
+    environment:
+      DATABASE_URL: postgresql://ukstress_api:ukstress_api@postgres:5432/ukstress
+      LISTEN_ADDRESS: :8080
+      MODEL_URL: http://stress-model:8090
+      MODEL_MANIFEST: /etc/ukstress/serving_manifest.json
+      ACTIVE_INVENTORY_HASH: 9f34004e50b534b44998af81e6a4e73cecf1531d4fcf4ce1bc74fb1916a5d1f5
+      # manual-corrections-v1: readings a person decided, which lead the trie's
+      # statistical default instead of losing to it.
+      REVIEWED_DATASETS: "12"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stress-model:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    volumes:
+      - ../models/v3-xenc/serving_manifest.json:/etc/ukstress/serving_manifest.json:ro
+
+  stress-model:
+    build:
+      context: ..
+      dockerfile: ml/Dockerfile
+    environment:
+      HF_HOME: /tmp/huggingface
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+
+volumes:
+  postgres-data:

@@ -1,0 +1,10 @@
+alignment:
+  word_backend: whisperx
+  word_model_id: Yehor/wav2vec2-xls-r-300m-uk-with-small-lm
+  language: uk
+  device: cpu
+  model_cache_only: false
+  return_char_alignments: true
+  fine_backend: whisperx_chars
+  min_quality: 0.8
+  overlap_tolerance_s: 0.005

@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ukstress-ml"
+version = "0.1.0"
+description = "Contextual homograph stress disambiguation: corpus and model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "ukstress-etl",
+  # Source of the accented wordlist and of the tag-structured readings the
+  # surface triage classifies on (`ukstress_ml.triage`).
+  "ukrainian-word-stress>=2.1,<3",
+  # Morphological tagger for the grammatical-ambiguity tier. The model itself
+  # is fetched by ml/scripts/fetch_spacy_model.sh, not pinned here: its wheel
+  # pins spaCy 3.7.5, whose blis dependency will not build on Python 3.14.
+  "spacy>=3.8,<4",
+  # What cases and numbers a surface form can carry (VESUM). The tagger reads
+  # «Мої сестри.» as a genitive singular — «мої» included, which no dictionary
+  # allows — and the combiner checks the noun against what its modifier can be.
+  "pymorphy3>=2.0,<3",
+  "pymorphy3-dicts-uk>=2.4,<3",
+  "pyahocorasick>=2.1,<3",
+  "zstandard>=0.23,<1",
+  "lxml>=5.3,<7",
+  "openai>=1.60",
+  "python-dotenv>=1.0",
+  "torch>=2.4",
+  "transformers>=4.45",
+  "sentencepiece>=0.2",
+  "numpy>=1.26",
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "psycopg>=3.3.4",
+  "onnxruntime>=1.20",
+  "optimum[onnxruntime]>=1.24",
+  "gradio>=6.17.3",
+]
+
+[tool.uv.sources]
+# `ukstress-etl` is this repository's ETL package, not a registry release.
+# Without this the ml environment cannot resolve at all.
+ukstress-etl = { path = "../etl", editable = true }
+
+[dependency-groups]
+dev = [
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<9",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+ukstress-ml = "ukstress_ml.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ukstress_ml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

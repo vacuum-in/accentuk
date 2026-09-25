@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# Export the lexicon database to gzip CSV files, or import such an archive
+# into an empty database.
+#
+#   db/lexicon_archive.sh export DIR [serving|full]
+#   db/lexicon_archive.sh import DIR
+#   db/lexicon_archive.sh verify DIR
+#
+# serving (default): what the stress API reads: stress_lookup, active_dataset,
+#   contextual_stress_candidate and the import_run rows they point to.
+#   ~90 MB. The import drops stress_lookup's foreign keys to lexeme and
+#   word_form, whose rows are not in the archive; the API does not read them.
+# full: every table except the ETL's staging_* tables, about the size of a
+#   pg_dump. Restores the lexicon for the ETL too.
+#
+# The connection is a psql command line in $PSQL, for example
+#   PSQL="docker compose exec -T postgres psql -U ukstress_owner -d ukstress"
+# It defaults to plain psql and the usual PG* variables. The import target
+# must be an empty database; the schema comes from db/migrations, applied here.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+PSQL="${PSQL:-psql}"
+command="${1:?export | import | verify}"
+dir="${2:?archive directory}"
+profile="${3:-serving}"
+
+SERVING_TABLES="import_run active_dataset stress_lookup contextual_stress_candidate"
+
+psql_q() { $PSQL -v ON_ERROR_STOP=1 -X -q "$@"; }
+# Queries that read nothing must not inherit stdin: `docker compose exec`
+# would swallow the CSV stream or the manifest being read in a loop.
+scalar() { psql_q -At -c "$1" < /dev/null; }
+
+# Tables in dependency order: every table after the tables it references.
+full_tables() {
+  scalar "
+    WITH RECURSIVE t AS (
+      SELECT c.oid, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r'
+        AND c.relname NOT LIKE 'staging\_%' AND c.relname <> 'schema_migration'),
+    dep AS (
+      SELECT t.oid, t.relname, 0 AS depth FROM t
+      UNION ALL
+      SELECT t.oid, t.relname, dep.depth + 1 FROM dep
+      JOIN pg_constraint k ON k.contype = 'f' AND k.confrelid = dep.oid AND k.conrelid <> k.confrelid
+      JOIN t ON t.oid = k.conrelid)
+    SELECT relname FROM dep GROUP BY relname ORDER BY max(depth), relname" | tr '\n' ' '
+}
+
+columns() {
+  # Generated columns are recomputed on import, so they are not archived.
+  scalar "SELECT string_agg(quote_ident(attname), ',' ORDER BY attnum) FROM pg_attribute
+          WHERE attrelid = 'public.$1'::regclass AND attnum > 0 AND NOT attisdropped AND attgenerated = ''"
+}
+
+# A deterministic digest of a table's rows, to prove a round trip lossless.
+digest() {
+  # md5 per row first: aggregating the rows themselves would build a
+  # gigabyte-sized string on the larger tables.
+  scalar "SELECT count(*) || ' ' || coalesce(md5(string_agg(h, '' ORDER BY h)), '-')
+          FROM (SELECT md5((t.*)::text) AS h FROM (SELECT $(columns "$1") FROM public.$1) t) s"
+}
+
+export_archive() {
+  mkdir -p "$dir"
+  local tables
+  if [ "$profile" = full ]; then tables="$(full_tables)"; else tables="$SERVING_TABLES"; fi
+  : > "$dir/MANIFEST.tsv"
+  for table in $tables; do
+    local cols; cols="$(columns "$table")"
+    psql_q -c "\\copy (SELECT $cols FROM public.$table) TO STDOUT WITH (FORMAT csv, HEADER)" \
+      | gzip -6 > "$dir/$table.csv.gz"
+    # counted in the database: a quoted CSV field may span several lines
+    local rows; rows="$(scalar "SELECT count(*) FROM public.$table")"
+    printf '%s\t%s\t%s\t%s\n' "$table" "$rows" "$(digest "$table")" \
+      "$(sha256sum "$dir/$table.csv.gz" | cut -d' ' -f1)" >> "$dir/MANIFEST.tsv"
+    printf '  %-30s %10s rows  %s\n' "$table" "$rows" "$(du -h "$dir/$table.csv.gz" | cut -f1)"
+  done
+  printf 'profile\t%s\nexported\t%s\n' "$profile" "$(date -u +%FT%TZ)" > "$dir/ARCHIVE.txt"
+  echo "-> $dir ($(du -sh "$dir" | cut -f1))"
+}
+
+import_archive() {
+  [ -f "$dir/MANIFEST.tsv" ] || { echo "no MANIFEST.tsv in $dir" >&2; exit 1; }
+  (cd "$dir" && cut -f1,4 MANIFEST.tsv | awk '{print $2"  "$1".csv.gz"}' | sha256sum -c --quiet)
+  if [ "$(scalar "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")" != 0 ]; then
+    echo "the target database is not empty" >&2; exit 1
+  fi
+  echo "=== schema"
+  for migration in "$HERE"/migrations/*.sql; do psql_q < "$migration" > /dev/null; done
+  local profile_in; profile_in="$(awk -F'\t' '$1 == "profile" {print $2}' "$dir/ARCHIVE.txt")"
+  if [ "$profile_in" != full ]; then
+    # The serving archive leaves out lexeme and word_form.
+    scalar "ALTER TABLE stress_lookup DROP CONSTRAINT stress_lookup_lexeme_id_fkey,
+                                         DROP CONSTRAINT stress_lookup_word_form_id_fkey"
+  fi
+  echo "=== data"
+  while IFS=$'\t' read -r table rows _ _ _ <&3; do
+    local cols; cols="$(columns "$table")"
+    # identity columns are GENERATED ALWAYS; the archived ids must be kept
+    local identity; identity="$(scalar "SELECT string_agg(format('ALTER COLUMN %I SET GENERATED BY DEFAULT', attname), ', ')
+      FROM pg_attribute WHERE attrelid = 'public.$table'::regclass AND attidentity = 'a'")"
+    [ -n "$identity" ] && scalar "ALTER TABLE public.$table $identity" > /dev/null
+    # Migrations seed some reference tables (part_of_speech); the archive's
+    # rows replace them. Nothing references them yet: dependents load later.
+    scalar "DELETE FROM public.$table" > /dev/null
+    gzip -dc "$dir/$table.csv.gz" \
+      | psql_q -c "\\copy public.$table ($cols) FROM STDIN WITH (FORMAT csv, HEADER)"
+    [ -n "$identity" ] && scalar "ALTER TABLE public.$table ${identity//BY DEFAULT/ALWAYS}" > /dev/null
+    local got; got="$(scalar "SELECT count(*) FROM public.$table")"
+    [ "$got" = "$rows" ] || { echo "$table: imported $got rows, archive has $rows" >&2; exit 1; }
+    printf '  %-30s %10s rows\n' "$table" "$rows"
+  done 3< "$dir/MANIFEST.tsv"
+  # Identity columns keep counting after the highest imported id.
+  scalar "SELECT format('SELECT setval(%L, (SELECT coalesce(max(%I), 0) + 1 FROM %I), false)',
+                        pg_get_serial_sequence(quote_ident(table_name), column_name), column_name, table_name)
+          FROM information_schema.columns
+          WHERE table_schema = 'public' AND is_identity = 'YES'" | while read -r statement; do
+    scalar "$statement" > /dev/null
+  done
+  scalar "ANALYZE"
+  verify_archive
+}
+
+verify_archive() {
+  local failed=0
+  while IFS=$'\t' read -r table rows want _ <&3; do
+    local got; got="$(digest "$table")"
+    if [ "$got" = "$want" ]; then printf '  ok    %-30s %s\n' "$table" "$rows"
+    else printf '  DIFF  %-30s archive %s, database %s\n' "$table" "$want" "$got"; failed=1; fi
+  done 3< "$dir/MANIFEST.tsv"
+  [ "$failed" = 0 ] && echo "=== every table matches the archive" || { echo "=== mismatch" >&2; exit 1; }
+}
+
+case "$command" in
+  export) export_archive ;;
+  import) import_archive ;;
+  verify) verify_archive ;;
+  *) echo "unknown command: $command" >&2; exit 2 ;;
+esac
