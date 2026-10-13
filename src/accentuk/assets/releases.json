@@ -64,5 +64,65 @@
         "vocab.json": "0f11e1d7404edd5176fe1aa82561207fcbc489adac41b7f5b957feecbc1c9cc2"
       }
     }
+  },
+  "lexicon_bundle": {
+    "url": "https://github.com/vacuum-in/accentuk/releases/download/lexicon-v1/accentuk-lexicon-v1.tar.gz",
+    "sha256": "4c18183fbf90be25790fa769aa36a0f971b469ad23321cdd9019b4fb6355ee63"
+  },
+  "hub_models": {
+    "crossencoder_ct2": {
+      "repo": "aloudreader/uk-stress-crossencoder-ct2-int8",
+      "revision": "cf9133781f0f74c142a7d589a7af8ace1d8e5573",
+      "target": "ct2_models/stress-model-ct2-int8",
+      "set": "light"
+    },
+    "token_classifier_ct2": {
+      "repo": "aloudreader/uk-stress-token-classifier-ct2-int8",
+      "revision": "0d85c73a7565a5b1c4e2a5593d529b50c1ea9a30",
+      "target": "ct2_models/tok-v5-ct2-int8",
+      "set": "light"
+    },
+    "spacy_sm": {
+      "repo": "spacy/uk_core_news_sm",
+      "revision": "ca2310baff047c262a04258e0d7f6a8721a06bd1",
+      "target": "spacy-uk_core_news_sm",
+      "set": "light"
+    },
+    "verbalizer_ct2": {
+      "repo": "aloudreader/marian-uk-verbalizer-ct2-int8",
+      "revision": "483bd81b6ad3bc1a9eaaf6d5835ced755774e95e",
+      "target": "ct2_models/verbalizer-ct2-int8",
+      "set": "light-tts"
+    },
+    "crossencoder": {
+      "repo": "aloudreader/uk-stress-crossencoder",
+      "revision": "6760529e714ffac7f89f33b8f7001b885a5ebc8f",
+      "target": "stress-model",
+      "set": "full"
+    },
+    "token_classifier": {
+      "repo": "aloudreader/uk-stress-token-classifier",
+      "revision": "d2795e0c32154ba284248729f35362de135b0d72",
+      "target": "tok-v5",
+      "set": "full"
+    },
+    "combiner": {
+      "repo": "aloudreader/uk-stress-combiner",
+      "revision": "f54a4f2f15615b201e26a284882d5ef65c7821c0",
+      "target": "combiner-v1",
+      "set": "full"
+    },
+    "spacy_trf": {
+      "repo": "spacy/uk_core_news_trf",
+      "revision": "695c843e091e2659b1ee747af0b564ce54c8aff5",
+      "target": "spacy-uk_core_news_trf",
+      "set": "full"
+    },
+    "verbalizer": {
+      "repo": "aloudreader/marian-uk-verbalizer",
+      "revision": "7726f30947caf3b2882c8e753805f930e67ec858",
+      "target": "verbalizer",
+      "set": "full-tts"
+    }
   }
 }

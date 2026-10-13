@@ -166,33 +166,33 @@ def download_assets(
                     if src_verb.is_dir():
                         shutil.copytree(src_verb, staging_dir / "verbalizer", dirs_exist_ok=True)
         else:
-            # Download from data release
-            data_cfg = desc["data_release"]
-            data_base = data_cfg["url_base"]
+            # The lexicon comes prebuilt (building it needs ukrainian-word-stress for the readings),
+            # the models from the Hub at the commits pinned in releases.json.
+            lex = desc["lexicon_bundle"]
             downloads_dir = staging_dir / "downloads"
             downloads_dir.mkdir(exist_ok=True)
+            lex_tar = downloads_dir / "lexicon.tar.gz"
+            _download_file(lex["url"], lex_tar, lex["sha256"])
+            import tarfile
+            with tarfile.open(lex_tar) as tf:
+                tf.extractall(staging_dir, filter="data")
+            shutil.rmtree(downloads_dir)
 
-            serving_tar = downloads_dir / "lexicon-serving.tar"
-            _download_file(
-                f"{data_base}/lexicon-serving.tar",
-                serving_tar,
-                data_cfg["files"]["lexicon-serving.tar"]["sha256"],
-            )
-
-            assets_tar = downloads_dir / "lexicon-assets.tar.gz"
-            _download_file(
-                f"{data_base}/lexicon-assets.tar.gz",
-                assets_tar,
-                data_cfg["files"]["lexicon-assets.tar.gz"]["sha256"],
-            )
-
-            # Build bundle
-            build_bundle(
-                archive=serving_tar,
-                model_manifest={"inventory_hash": desc["inventory_hash"], "model_version": "v3-xenc"},
-                output=staging_dir,
-                assets_dir=assets_tar,
-            )
+            from huggingface_hub import snapshot_download
+            sets = {"full"} if full and not light else {"light"}
+            if include_tts:
+                sets |= {f"{x}-tts" for x in sets}
+            for name, m in desc["hub_models"].items():
+                if m["set"] not in sets:
+                    continue
+                log.info("Downloading %s (%s@%s)...", name, m["repo"], m["revision"][:12])
+                snapshot_download(m["repo"], revision=m["revision"], local_dir=staging_dir / m["target"],
+                                  ignore_patterns=["*.whl", ".gitattributes", "README.md"])
+            # Both cross-encoders read the serving manifest from the bundle root.
+            for cand in ("ct2_models/stress-model-ct2-int8", "stress-model"):
+                if (staging_dir / cand / "serving_manifest.json").is_file():
+                    shutil.copy(staging_dir / cand / "serving_manifest.json", staging_dir / "serving_manifest.json")
+                    break
 
         # Validate staging before activating
         AssetBundle.open(staging_dir)
