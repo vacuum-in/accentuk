@@ -46,14 +46,14 @@ from accentuk import Accentor
 
 # Light mode: fast CTranslate2 INT8 models, low memory footprint
 with Accentor(mode="light") as engine:
-    result = engine.stress("Замок стоїть на горі.")
-    print(result.text)  # "За́мок стої́ть на горі́."
+    result = engine.stress("Старовинний замок стоїть на горі.")
+    print(result.text)  # "Старови́нний за́мок стої́ть на горі́."
     for token in result.tokens:
         print(f"{token.text} -> {token.output_text} ({token.status})")
 
 # Full mode: PyTorch FP32 models + spaCy TRF + Combiner
 with Accentor(mode="full") as engine:
-    result = engine.stress("Замок стоїть на горі.")
+    result = engine.stress("Старовинний замок стоїть на горі.")
     print(result.text)
 
 # Auto mode (default): uses Light if CT2 models exist, otherwise Full/Dictionary
@@ -104,10 +104,10 @@ accentuk download --full --tts
 
 ```bash
 # Stress plain Ukrainian text using Light mode
-accentuk stress "Замок на горі стоїть." --mode light
+accentuk stress "Він відчинив замок ключем." --mode light   # Він відчини́в замо́к ключе́м.
 
 # Stress using Full mode
-accentuk stress "Замок на горі стоїть." --mode full
+accentuk stress "Він відчинив замок ключем." --mode full
 
 # Process text from standard input
 echo "Мої сестри." | accentuk stress --mode light

@@ -95,8 +95,10 @@ class AssetBundle:
 def _download_file(url: str, dest: Path, expected_sha: str | None = None) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     temp_dest = dest.with_suffix(dest.suffix + ".part")
+    from . import __version__
+
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "accentuk/0.1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": f"accentuk/{__version__}"})
         with urllib.request.urlopen(req) as resp, temp_dest.open("wb") as out:
             shutil.copyfileobj(resp, out)
 

@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "accentuk"
-version = "0.1.0"
+version = "0.1.1"
 description = "Offline Ukrainian stress marking and optional TTS preparation"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 license = "Apache-2.0"
 license-files = ["LICENSE", "src/accentuk/assets/NOTICE.md"]
 dependencies = [
-  "marisa-trie>=1.2,<2", "huggingface_hub>=0.25", "ctranslate2>=4.8,<5", "torch>=2.4,<3", "transformers>=4.45,<5",
+  "marisa-trie>=1.2,<2", "huggingface_hub>=0.25", "ctranslate2>=4.8,<5", "torch>=2.4,<3", "transformers>=4.45,<6",
   "sentencepiece>=0.2,<1", "spacy>=3.8,<3.9", "spacy-curated-transformers>=0.3,<0.4",
   "pymorphy3>=2,<3", "pymorphy3-dicts-uk>=2.4,<3",
 ]

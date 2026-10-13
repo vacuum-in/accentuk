@@ -53,17 +53,17 @@ from accentuk import Accentor
 
 # Explicit Light mode (CTranslate2 INT8 + MARISA Trie)
 with Accentor(mode="light") as engine:
-    result = engine.stress("Замок стоїть на горі.")
-    print(result.text)  # "За́мок стої́ть на горі́."
+    result = engine.stress("Старовинний замок стоїть на горі.")
+    print(result.text)  # "Старови́нний за́мок стої́ть на горі́."
 
 # Explicit Full mode (PyTorch FP32 + spaCy TRF + Combiner)
 with Accentor(mode="full") as engine:
-    result = engine.stress("Замок стоїть на горі.")
+    result = engine.stress("Старовинний замок стоїть на горі.")
     print(result.text)
 
 # Auto mode (default): uses Light if CT2 models exist, falls back to Full or Dictionary
 with Accentor(mode="auto") as engine:
-    result = engine.stress("Замок стоїть на горі.")
+    result = engine.stress("Старовинний замок стоїть на горі.")
 ```
 
 #### Engine Internals:
@@ -160,10 +160,10 @@ accentuk download --full --tts
 
 ```bash
 # Run with Light mode (fast, low memory)
-accentuk stress "Замок стоїть на горі." --mode light
+accentuk stress "Старовинний замок стоїть на горі." --mode light
 
 # Run with Full mode
-accentuk stress "Замок стоїть на горі." --mode full
+accentuk stress "Старовинний замок стоїть на горі." --mode full
 
 # Prepare TTS
 accentuk prepare "2024 р. у Києві" --mode light
