@@ -131,9 +131,9 @@ Measured on 2026-10-13 with the same benchmarks as the service (`vacuum-in/accen
 | modern-text gold, 3,887 words (all / reviewed lines) | 98.07% / 96.83% | 98.07% / 96.83% | 97.63% / 96.25% |
 | [lang-uk stress benchmark](https://github.com/lang-uk/ukrainian-tts-preprocessing), words / heteronyms | 96.10% / 84.62% | 96.10% / 84.62% | 96.10% / 84.62% |
 
-The table was measured with the service's current lexicon, which includes a 51,298-word dictionary of stress heard
-in recordings (not yet released). The lexicon `accentuk download` installs today (`lexicon-v1`, built from the public
-`data-v1`) gives in light mode: 95.54% on the top-200 test, 97.20% on the gold, 95.92% / 84.62% on lang-uk.
+The lexicon `accentuk download` installs (`lexicon-v2`, built from the public `data-v2` of accentuk-api) is the
+service's, including the 51,298-word dictionary of stress heard in recordings; the light-mode column was measured on a
+clean download of it.
 
 Full mode gives the service's answers. Light mode differs on 34 lang-uk tokens: 18 where the small spaCy tagger
 parses differently from the transformer one, the rest from INT8 quantization (the INT8 cross-encoder picks
