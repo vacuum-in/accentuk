@@ -7,7 +7,7 @@ import pytest
 from accentuk import Accentor, Frontend
 from accentuk.inference import Target, CT2ContextualStressModel
 from accentuk.token_resolver import CT2TokenResolver
-from accentuk.verbalize import CT2MarianVerbalizer
+from accentuk.verbalize import CT2GemmaVerbalizer, CT2MarianVerbalizer, load_verbalizer
 
 
 @pytest.fixture(scope="module")
@@ -113,3 +113,17 @@ def test_frontend_modes(bundle_path: Path):
         res = frontend.prepare("Вона купила 25 яблук.")
         assert res.mode == "light"
         assert len(res.text) > 0
+
+
+def test_gemma_verbalizer():
+    gemma_dir = Path(os.environ.get("ACCENTUK_TEST_GEMMA", "/nonexistent"))
+    if not (gemma_dir / "model.bin").is_file():
+        pytest.skip("gemma-verbalizer-ct2-int8 not found")
+    verb = load_verbalizer(gemma_dir, mode="light")
+    assert isinstance(verb, CT2GemmaVerbalizer)
+    out = verb.verbalize(["Зустріч о 08:05 у кабінеті 12.", "0000000", "Збитки оцінили в 7000000000 доларів.", ""])
+    assert out[0] == "Зустріч о восьмій нуль п'ять у кабінеті дванадцять."
+    assert out[1] == "нуль нуль нуль нуль нуль нуль нуль"
+    assert "сім мільярдів" in out[2]
+    assert out[3] == ""
+    assert not any(ch.isdigit() for o in out for ch in o)

@@ -151,7 +151,7 @@ def download_assets(
             # Copy CT2 light models if present
             ct2_source = Path(os.environ.get("ACCENTUK_LOCAL_CT2", "/nonexistent"))
             if ct2_source.is_dir():
-                for ct2_name in ("stress-model-ct2-int8", "tok-v5-ct2-int8", "verbalizer-ct2-int8"):
+                for ct2_name in ("stress-model-ct2-int8", "tok-v5-ct2-int8", "verbalizer-ct2-int8", "gemma-verbalizer-ct2-int8"):
                     src_ct2 = ct2_source / ct2_name
                     if src_ct2.is_dir():
                         shutil.copytree(src_ct2, staging_dir / ct2_name, dirs_exist_ok=True)
@@ -185,7 +185,7 @@ def download_assets(
             if include_tts:
                 sets |= {f"{x}-tts" for x in sets}
             for name, m in desc["hub_models"].items():
-                if m["set"] not in sets:
+                if not sets & set(m["set"] if isinstance(m["set"], list) else [m["set"]]):
                     continue
                 log.info("Downloading %s (%s@%s)...", name, m["repo"], m["revision"][:12])
                 snapshot_download(m["repo"], revision=m["revision"], local_dir=staging_dir / m["target"],
@@ -199,19 +199,22 @@ def download_assets(
         # Validate staging before activating
         AssetBundle.open(staging_dir)
 
-        # If target_path already exists and we're just adding --tts:
-        if (target_path / "lexicon.marisa").is_file() and include_tts and (staging_dir / "verbalizer").is_dir():
-            shutil.copytree(staging_dir / "verbalizer", target_path / "verbalizer", dirs_exist_ok=True)
-        else:
-            # Atomic copy/replace
-            for item in staging_dir.iterdir():
-                dest = target_path / item.name
-                if item.is_dir():
-                    if dest.is_dir():
-                        shutil.rmtree(dest)
-                    shutil.copytree(item, dest)
-                else:
-                    shutil.copy2(item, dest)
+        # Replace what was staged; directories nested under ct2_models/ are replaced one by one, so adding
+        # --tts to an installed bundle keeps its other CT2 models.
+        for item in staging_dir.iterdir():
+            dest = target_path / item.name
+            if item.is_dir() and item.name == "ct2_models":
+                dest.mkdir(exist_ok=True)
+                for sub in item.iterdir():
+                    if (dest / sub.name).is_dir():
+                        shutil.rmtree(dest / sub.name)
+                    shutil.copytree(sub, dest / sub.name)
+            elif item.is_dir():
+                if dest.is_dir():
+                    shutil.rmtree(dest)
+                shutil.copytree(item, dest)
+            else:
+                shutil.copy2(item, dest)
 
         log.info("Assets successfully installed and verified at %s", target_path)
         return target_path

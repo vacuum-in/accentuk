@@ -16,9 +16,9 @@ Offline Ukrainian stress marking and TTS text verbalization powered by a memory-
 | **Deterministic Rules** | Prepositions, compounds, suffix analogy table | Prepositions, compounds, suffix analogy table | Identical deterministic rules |
 | **Cross-Encoder Model** | CTranslate2 INT8 (`267 MB`) | PyTorch FP32 XLM-RoBERTa (`1,061 MB`) | **3.1x faster**, **74.8% smaller** |
 | **Token Classifier** | CTranslate2 INT8 (`106 MB`) | PyTorch FP32 XLM-RoBERTa (`420 MB`) | **6.0x faster**, **74.7% smaller** |
-| **TTS Verbalizer** | CTranslate2 INT8 (`51 MB`, 4.4 ms/sentence) | PyTorch FP32 MarianMT (`200 MB`, 2.9 s/sentence) | **660x faster**, **74.3% smaller** |
+| **TTS Verbalizer** | Gemma-3-270M, CTranslate2 INT8 (`126 MB`, ~70 ms/sentence) | the same | one model for both modes |
 | **Morphology Tier** | spaCy small (`uk_core_news_sm`, ~15 MB) | spaCy TRF (`uk_core_news_trf_380`, 380 MB) | small CPU tagger |
-| **Total Model Disk** | **425 MB** | **~1,680 MB** (+ 380 MB spaCy) | **74.7% disk reduction** |
+| **Total Model Disk** | **374 MB** (+ 126 MB with `--tts`) | **~1,680 MB** (+ 380 MB spaCy) | **74.7% disk reduction** |
 | **Runtime Memory (RSS)** | **~120 – 180 MB** | **~1,500 – 2,200 MB** | **~10x lower RAM** |
 | **Recommended For** | Production TTS, embedded systems, CLI, microservices | Research, batch indexing, maximum ensemble accuracy | |
 
@@ -69,12 +69,12 @@ Normalizes dates, numbers, currencies, abbreviations, and symbols, then applies 
 ```python
 from accentuk import Frontend
 
-# Light mode: fast INT8 verbalization (4.4 ms) + Light stress marking
+# Light mode: Gemma INT8 verbalization + Light stress marking
 with Frontend(mode="light") as frontend:
     result = frontend.prepare("Вона купила 25 яблук за 150 грн 3 квітня 2024 року.")
     print(result.text)
 
-# Full mode: MarianMT PyTorch FP32 + Full stress marking
+# Full mode: the same verbalizer + Full stress marking
 with Frontend(mode="full") as frontend:
     result = frontend.prepare("Вона купила 25 яблук за 150 грн 3 квітня 2024 року.")
     print(result.text)
@@ -147,9 +147,31 @@ Evaluated on AMD EPYC / Intel Xeon CPUs with single-thread and batched execution
 
 | Model Tier | PyTorch FP32 Latency | CTranslate2 INT8 Latency | Speedup | Quality Parity |
 |---|---|---|---|---|
-| **Verbalizer (MarianMT)** | 2,891 ms / sentence | **4.38 ms / sentence** | **659.9x** | 100% exact match |
+| **Verbalizer (MarianMT, before 0.2)** | 2,891 ms / sentence | **4.38 ms / sentence** | **659.9x** | 100% exact match |
 | **Token Classifier (XLM-R-uk)** | 31.0 ms / target | **5.20 ms / target** | **5.96x** | 100% top-1 match |
 | **Cross-Encoder (XLM-R)** | 100.2 ms / target | **32.6 ms / target** | **3.07x** | 96.0% top-1 match |
+
+### Verbalizer
+
+The default verbalizer (from 0.2) is [`skypro1111/gemma-3-270m-uk-verbalizer`](https://huggingface.co/skypro1111/gemma-3-270m-uk-verbalizer)
+converted to CTranslate2 INT8 ([`aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8`](https://huggingface.co/aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8)),
+run as its card prescribes: one sentence at a time, greedy, digit tokens banned, bare digit strings and long numbers
+prepared by its two deterministic helpers. Exact match on the held-out splits of
+[`skypro1111/uk-text-normalization`](https://huggingface.co/datasets/skypro1111/uk-text-normalization), CPU:
+
+| split | rows | Gemma CT2 INT8 | Marian CT2 INT8 (before 0.2) |
+|---|---:|---:|---:|
+| 139 domains | 2,564 | **89.59%** | 88.53% |
+| mixed hard sentences | 557 | **90.13%** | 86.00% |
+| transliteration | 380 | 72.63% | **72.89%** |
+| numeral agreement | 63 | **100.00%** | 88.89% |
+| reported bugs | 22 | **95.45%** | 90.91% |
+| misc | 33 | **81.82%** | 75.76% |
+| time per sentence | | 72 ms | 10 ms |
+
+The INT8 conversion gives the same outputs as the original in transformers on these splits. The Marian model was
+trained on an earlier version of the same dataset, so some of these rows may have been in its training data.
+Gemma is provided under and subject to the [Gemma Terms of Use](https://ai.google.dev/gemma/terms).
 
 ---
 

@@ -88,12 +88,6 @@
       "target": "spacy-uk_core_news_sm",
       "set": "light"
     },
-    "verbalizer_ct2": {
-      "repo": "aloudreader/marian-uk-verbalizer-ct2-int8",
-      "revision": "483bd81b6ad3bc1a9eaaf6d5835ced755774e95e",
-      "target": "ct2_models/verbalizer-ct2-int8",
-      "set": "light-tts"
-    },
     "crossencoder": {
       "repo": "aloudreader/uk-stress-crossencoder",
       "revision": "6760529e714ffac7f89f33b8f7001b885a5ebc8f",
@@ -118,11 +112,14 @@
       "target": "spacy-uk_core_news_trf",
       "set": "full"
     },
-    "verbalizer": {
-      "repo": "aloudreader/marian-uk-verbalizer",
-      "revision": "7726f30947caf3b2882c8e753805f930e67ec858",
-      "target": "verbalizer",
-      "set": "full-tts"
+    "verbalizer_gemma_ct2": {
+      "repo": "aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8",
+      "revision": "3f8056d4af6900762e2ed712c8770735c4252f94",
+      "target": "ct2_models/gemma-verbalizer-ct2-int8",
+      "set": [
+        "light-tts",
+        "full-tts"
+      ]
     }
   }
 }
