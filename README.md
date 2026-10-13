@@ -169,7 +169,8 @@ prepared by its two deterministic helpers. Exact match on the held-out splits of
 | misc | 33 | **81.82%** | 75.76% |
 | time per sentence | | 72 ms | 10 ms |
 
-The INT8 conversion gives the same outputs as the original in transformers on these splits. The Marian model was
+INT8 costs a little against the original model (90.25 / 91.38 / 75.53 / 100 / 95.45 / 78.79 in transformers): about
+one point on the main splits and three on transliteration, for 3.5x the CPU speed of float32. The Marian model was
 trained on an earlier version of the same dataset, so some of these rows may have been in its training data.
 Gemma is provided under and subject to the [Gemma Terms of Use](https://ai.google.dev/gemma/terms).
 
