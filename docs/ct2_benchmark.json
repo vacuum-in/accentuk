@@ -1,0 +1,130 @@
+{
+  "verbalizer": {
+    "model": "verbalizer (Marian MT)",
+    "source_size_mb": 199.8,
+    "f32_size_mb": 200.4,
+    "i8_size_mb": 51.3,
+    "sentences_count": 16,
+    "pytorch": {
+      "load_sec": 0.35,
+      "run_sec": 46.174,
+      "throughput_sent_s": 0.35,
+      "latency_ms_per_sent": 2885.9
+    },
+    "ct2_float32": {
+      "load_sec": 0.241,
+      "run_sec": 0.254,
+      "throughput_sent_s": 62.95,
+      "latency_ms_per_sent": 15.89,
+      "speedup_vs_pt": 181.67,
+      "exact_match_pct": 100.0
+    },
+    "ct2_int8": {
+      "load_sec": 0.047,
+      "run_sec": 0.07,
+      "throughput_sent_s": 228.66,
+      "latency_ms_per_sent": 4.37,
+      "speedup_vs_pt": 659.9,
+      "exact_match_pct": 100.0,
+      "size_reduction_pct": 74.3
+    },
+    "sample_outputs": [
+      {
+        "input": "У 1991 році Україна проголосила незалежність.",
+        "pytorch": "У тисяча дев'ятсот дев'яносто першому році Україна проголосила незалежність.",
+        "ct2_fp32": "У тисяча дев'ятсот дев'яносто першому році Україна проголосила незалежність.",
+        "ct2_int8": "У тисяча дев'ятсот дев'яносто першому році Україна проголосила незалежність."
+      },
+      {
+        "input": "Вона купила 25 яблук за 150 грн.",
+        "pytorch": "Вона купила двадцять п'ять яблук за сто п'ятдесят гривень.",
+        "ct2_fp32": "Вона купила двадцять п'ять яблук за сто п'ятдесят гривень.",
+        "ct2_int8": "Вона купила двадцять п'ять яблук за сто п'ятдесят гривень."
+      },
+      {
+        "input": "Температура була -5°C, а вологість 85%.",
+        "pytorch": "Температура була мінус п'ять градусів Цельсія, а вологість вісімдесят п'ять відсотків.",
+        "ct2_fp32": "Температура була мінус п'ять градусів Цельсія, а вологість вісімдесят п'ять відсотків.",
+        "ct2_int8": "Температура була мінус п'ять градусів Цельсія, а вологість вісімдесят п'ять відсотків."
+      },
+      {
+        "input": "Зустріч призначено на 14:30 12 травня 2024 року.",
+        "pytorch": "Зустріч призначено на чотирнадцяту тридцять дванадцять травня дві тисячі двадцять четвертого року.",
+        "ct2_fp32": "Зустріч призначено на чотирнадцяту тридцять дванадцять травня дві тисячі двадцять четвертого року.",
+        "ct2_int8": "Зустріч призначено на чотирнадцяту тридцять дванадцять травня дві тисячі двадцять четвертого року."
+      }
+    ]
+  },
+  "stress_model": {
+    "model": "stress-model (XLM-R Cross-Encoder)",
+    "source_size_mb": 1060.7,
+    "f32_size_mb": 1058.4,
+    "i8_size_mb": 267.4,
+    "targets_count": 50,
+    "pytorch": {
+      "load_sec": 0.502,
+      "run_sec": 5.009,
+      "throughput_targets_s": 9.98,
+      "throughput_pairs_s": 19.97,
+      "latency_ms_per_target": 100.17
+    },
+    "ct2_float32": {
+      "load_sec": 0.792,
+      "run_sec": 3.878,
+      "throughput_targets_s": 12.89,
+      "latency_ms_per_target": 77.56,
+      "speedup_vs_pt": 1.29,
+      "top1_match_pct": 100.0,
+      "logit_mae": 3.2e-06,
+      "logit_max_diff": 5.6e-05,
+      "logit_pearson_r": 1.0
+    },
+    "ct2_int8": {
+      "load_sec": 0.27,
+      "run_sec": 1.632,
+      "throughput_targets_s": 30.63,
+      "latency_ms_per_target": 32.64,
+      "speedup_vs_pt": 3.07,
+      "top1_match_pct": 96.0,
+      "logit_mae": 0.4105,
+      "logit_max_diff": 2.09229,
+      "logit_pearson_r": 0.99142,
+      "size_reduction_pct": 74.8
+    }
+  },
+  "tok_v5": {
+    "model": "tok-v5 (XLM-R Token Classifier)",
+    "source_size_mb": 419.9,
+    "f32_size_mb": 417.6,
+    "i8_size_mb": 106.3,
+    "targets_count": 50,
+    "pytorch": {
+      "load_sec": 0.035,
+      "run_sec": 1.563,
+      "throughput_targets_s": 32.0,
+      "latency_ms_per_target": 31.25
+    },
+    "ct2_float32": {
+      "load_sec": 0.298,
+      "run_sec": 0.721,
+      "throughput_targets_s": 69.38,
+      "latency_ms_per_target": 14.41,
+      "speedup_vs_pt": 2.17,
+      "top1_match_pct": 100.0,
+      "logit_mae": 8e-07,
+      "logit_max_diff": 3.3e-06
+    },
+    "ct2_int8": {
+      "load_sec": 0.127,
+      "run_sec": 0.262,
+      "throughput_targets_s": 190.75,
+      "latency_ms_per_target": 5.24,
+      "speedup_vs_pt": 5.96,
+      "top1_match_pct": 100.0,
+      "logit_mae": 0.12022,
+      "logit_max_diff": 0.60558,
+      "size_reduction_pct": 74.7
+    }
+  },
+  "timestamp": 1791369183.7720919
+}

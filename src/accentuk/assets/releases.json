@@ -1,0 +1,68 @@
+{
+  "release_version": "0.1.0",
+  "dataset_id": 2,
+  "inventory_hash": "759baefd94a6d8bc865f0a93ff378542b7a2b65dd58617c3194bdf85746c2769",
+  "normalization_version": "ukstress-nfd-v1",
+  "schema_version": 1,
+  "data_release": {
+    "url_base": "https://github.com/vacuum-in/accentuk-api/releases/download/data-v1",
+    "files": {
+      "lexicon-serving.tar": {
+        "sha256": "67b364057abf1d10b0963b07f285a4e3e322fce21ec7c903e01c904e7a5320e5"
+      },
+      "lexicon-assets.tar.gz": {
+        "sha256": "e65def53d4fc95d95bbd8c18142bd1f58b7af0eba2db3eef79794907cdf18cdc"
+      }
+    }
+  },
+  "models": {
+    "crossencoder": {
+      "repo": "aloudreader/uk-stress-crossencoder",
+      "revision": "6760529e714ffac7f89f33b8f7001b885a5ebc8f",
+      "files": {
+        "checkpoint/model.safetensors": "35cb3190904f352680850a507f45540df0ea8544653821b4aee459c693ce23c5",
+        "checkpoint/config.json": "fa756aaec2d8c2fc215e1d22070554ed834a8fbda9789a6fcfd961635ec62b49",
+        "checkpoint/tokenizer.json": "013ee4d5884a2e49945b7181b918285367b7e2ebcba843106ce22e2635bb4a8a",
+        "checkpoint/tokenizer_config.json": "5f3587fd1486c98a01f9c67bff3748fb150d7a3862289769833cb1c6309d76ca",
+        "checkpoint/special_tokens_map.json": "38d989b0fdad0fec0c67c14b1f3c8b68184022cf6d4adc5444526ced8653f738",
+        "serving_manifest.json": "39593fc90af96c0a48f24586c280b74152a54847af8500d3f7543753874d3684"
+      }
+    },
+    "token_classifier": {
+      "repo": "aloudreader/uk-stress-token-classifier",
+      "revision": "d2795e0c32154ba284248729f35362de135b0d72",
+      "files": {
+        "model.safetensors": "28607d6d0c99fe184b54f7540ae6abe6d04e6923e06abfacf7d11681f6cea2b6",
+        "config.json": "5a8242cc875e21f364b29cedc5d10d6dea6c9adc023acfee64bd34ac50b00088",
+        "head.pt": "5dfbb68e4e0caca8a66e853b0b6ab5dc34f7106f3e958b5393febfaba201730c",
+        "resolver.json": "4599961ae8f299ed0458a665d8d009d961a35e8c2b0a6c8ed570030e582c7e5f",
+        "coverage.json": "a24de1bf1f815a402116fb328d171508676b89d227573d698429387ff657fe41"
+      }
+    },
+    "combiner": {
+      "repo": "aloudreader/uk-stress-combiner",
+      "revision": "f54a4f2f15615b201e26a284882d5ef65c7821c0",
+      "files": {
+        "model.pt": "ca630edde162a81afcb9d70c5d5a52203758887f0b24a264dc47bb7503a30840",
+        "audio_prior.json": "e14cf2c5be46c9d6d4cb7d3d89a9692c96cbe9968318e1ba0ea520221b837727",
+        "classifier_profile.json": "b311120d232858d6e93a2189e2e84830bd94d8c8d49db6d037027f9694409a43",
+        "readings.jsonl": "0ad426e929e56000c49a294091305e6b2e25bb696b076e92d9899f965cc04d7c"
+      }
+    },
+    "spacy_trf": {
+      "url": "https://github.com/explosion/spacy-models/releases/download/uk_core_news_trf-3.8.0/uk_core_news_trf-3.8.0-py3-none-any.whl",
+      "version": "3.8.0"
+    },
+    "verbalizer": {
+      "repo": "aloudreader/marian-uk-verbalizer",
+      "revision": "7726f30947caf3b2882c8e753805f930e67ec858",
+      "files": {
+        "pytorch_model.bin": "d221528b5a001bec01834ae053da5b9327d2812edb36497185ab56d12849b06c",
+        "config.json": "d83a1a7a284a4391fdf9d359be5191e01be04007461a54cea2321eca6921344b",
+        "source.spm": "de8d503a8c321617ea0ba65b82539e50fd255dda0e5e6e5fc57bed5a55dfbd58",
+        "target.spm": "de8d503a8c321617ea0ba65b82539e50fd255dda0e5e6e5fc57bed5a55dfbd58",
+        "vocab.json": "0f11e1d7404edd5176fe1aa82561207fcbc489adac41b7f5b957feecbc1c9cc2"
+      }
+    }
+  }
+}
