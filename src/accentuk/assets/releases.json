@@ -112,10 +112,10 @@
       "target": "spacy-uk_core_news_trf",
       "set": "full"
     },
-    "verbalizer_gemma_ct2": {
-      "repo": "aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8",
-      "revision": "3f8056d4af6900762e2ed712c8770735c4252f94",
-      "target": "ct2_models/gemma-verbalizer-ct2-int8",
+    "verbalizer_spans_ct2": {
+      "repo": "aloudreader/marian-uk-verbalizer-spans-ct2-int8",
+      "revision": "4ed2217f4269552b15c20afa7159315481bac47b",
+      "target": "ct2_models/verbalizer-spans-ct2-int8",
       "set": [
         "light-tts",
         "full-tts"

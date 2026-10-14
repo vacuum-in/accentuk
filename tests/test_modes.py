@@ -7,7 +7,7 @@ import pytest
 from accentuk import Accentor, Frontend
 from accentuk.inference import Target, CT2ContextualStressModel
 from accentuk.token_resolver import CT2TokenResolver
-from accentuk.verbalize import CT2GemmaVerbalizer, CT2MarianVerbalizer, load_verbalizer
+from accentuk.verbalize import CT2GemmaVerbalizer, CT2MarianVerbalizer, CT2SpanVerbalizer, load_verbalizer
 
 
 @pytest.fixture(scope="module")
@@ -127,3 +127,17 @@ def test_gemma_verbalizer():
     assert "сім мільярдів" in out[2]
     assert out[3] == ""
     assert not any(ch.isdigit() for o in out for ch in o)
+
+
+def test_span_verbalizer():
+    span_dir = Path(os.environ.get("ACCENTUK_TEST_SPANS", "/nonexistent"))
+    if not (span_dir / "model.bin").is_file():
+        pytest.skip("verbalizer-spans-ct2-int8 not found")
+    verb = load_verbalizer(span_dir, mode="light")
+    assert isinstance(verb, CT2SpanVerbalizer)
+    out = verb.verbalize(["На 2 поверсі є 3 кімнати та 12 дверей.", "Як Вічний Жид[93], і в мене також.",
+                          "Він відчинив замок ключем.", ""])
+    assert out[0] == "На другому поверсі є три кімнати та дванадцять дверей."
+    assert out[1] == "Як Вічний Жид, і в мене також."
+    assert out[2] == "Він відчинив замок ключем."
+    assert out[3] == ""

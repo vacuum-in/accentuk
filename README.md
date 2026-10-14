@@ -16,9 +16,9 @@ Offline Ukrainian stress marking and TTS text verbalization powered by a memory-
 | **Deterministic Rules** | Prepositions, compounds, suffix analogy table | Prepositions, compounds, suffix analogy table | Identical deterministic rules |
 | **Cross-Encoder Model** | CTranslate2 INT8 (`267 MB`) | PyTorch FP32 XLM-RoBERTa (`1,061 MB`) | **3.1x faster**, **74.8% smaller** |
 | **Token Classifier** | CTranslate2 INT8 (`106 MB`) | PyTorch FP32 XLM-RoBERTa (`420 MB`) | **6.0x faster**, **74.7% smaller** |
-| **TTS Verbalizer** | Gemma-3-270M, CTranslate2 INT8 (`126 MB`, ~70 ms/sentence) | the same | one model for both modes |
+| **TTS Verbalizer** | span-to-span Marian, CTranslate2 INT8 (`54 MB`, 4-10 ms/sentence) | the same | one model for both modes |
 | **Morphology Tier** | spaCy small (`uk_core_news_sm`, ~15 MB) | spaCy TRF (`uk_core_news_trf_380`, 380 MB) | small CPU tagger |
-| **Total Model Disk** | **374 MB** (+ 126 MB with `--tts`) | **~1,680 MB** (+ 380 MB spaCy) | **74.7% disk reduction** |
+| **Total Model Disk** | **374 MB** (+ 54 MB with `--tts`) | **~1,680 MB** (+ 380 MB spaCy) | **74.7% disk reduction** |
 | **Runtime Memory (RSS)** | **~120 – 180 MB** | **~1,500 – 2,200 MB** | **~10x lower RAM** |
 | **Recommended For** | Production TTS, embedded systems, CLI, microservices | Research, batch indexing, maximum ensemble accuracy | |
 
@@ -69,7 +69,7 @@ Normalizes dates, numbers, currencies, abbreviations, and symbols, then applies 
 ```python
 from accentuk import Frontend
 
-# Light mode: Gemma INT8 verbalization + Light stress marking
+# Light mode: span verbalization + Light stress marking
 with Frontend(mode="light") as frontend:
     result = frontend.prepare("Вона купила 25 яблук за 150 грн 3 квітня 2024 року.")
     print(result.text)
@@ -153,26 +153,23 @@ Evaluated on AMD EPYC / Intel Xeon CPUs with single-thread and batched execution
 
 ### Verbalizer
 
-The default verbalizer (from 0.2) is [`skypro1111/gemma-3-270m-uk-verbalizer`](https://huggingface.co/skypro1111/gemma-3-270m-uk-verbalizer)
-converted to CTranslate2 INT8 ([`aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8`](https://huggingface.co/aloudreader/gemma-3-270m-uk-verbalizer-ct2-int8)),
-run as its card prescribes: one sentence at a time, greedy, digit tokens banned, bare digit strings and long numbers
-prepared by its two deterministic helpers. Exact match on the held-out splits of
-[`skypro1111/uk-text-normalization`](https://huggingface.co/datasets/skypro1111/uk-text-normalization), CPU:
+The default verbalizer (from 0.3) is [`aloudreader/marian-uk-verbalizer-spans-ct2-int8`](https://huggingface.co/aloudreader/marian-uk-verbalizer-spans-ct2-int8),
+a 52.7M-parameter Marian model that reads **one span at a time**: the parts of a sentence that may need reading
+(numbers, dates, money, units, Roman numerals, abbreviations, Latin words, symbols, footnote marks) are found from the
+shape of the characters (`accentuk.spans`), the model sees the sentence with one span marked and writes only that
+span, and everything outside the spans is copied from the input. Ordinary prose is never rewritten, and footnote
+marks ("Жид[93]") are not read. Spoken match (case and punctuation are not heard):
 
-| split | rows | Gemma CT2 INT8 | Marian CT2 INT8 (before 0.2) |
+| test | span Marian (0.3) | Gemma-3-270M (0.2) | whole-sentence Marian E54 |
 |---|---:|---:|---:|
-| 139 domains | 2,564 | **89.59%** | 88.53% |
-| mixed hard sentences | 557 | **90.13%** | 86.00% |
-| transliteration | 380 | 72.63% | **72.89%** |
-| numeral agreement | 63 | **100.00%** | 88.89% |
-| reported bugs | 22 | **95.45%** | 90.91% |
-| misc | 33 | **81.82%** | 75.76% |
-| time per sentence | | 72 ms | 10 ms |
+| held-out splits of [`skypro1111/uk-text-normalization`](https://huggingface.co/datasets/skypro1111/uk-text-normalization), 3,619 rows | 89.0% | ~90.2% | 89.5% |
+| 1,102 audiobook sentences with digits, Latin, abbreviations or symbols (references by Qwen3.8-27B) | **70.1%** | 58.9% | 62.6% |
+| audiobook sentences with a word outside the spans altered | **0.45%** | 8.1% | 5.0% |
+| time per sentence, CPU | 4-10 ms | 72 ms | 10 ms |
 
-INT8 costs a little against the original model (90.25 / 91.38 / 75.53 / 100 / 95.45 / 78.79 in transformers): about
-one point on the main splits and three on transliteration, for 3.5x the CPU speed of float32. The Marian model was
-trained on an earlier version of the same dataset, so some of these rows may have been in its training data.
-Gemma is provided under and subject to the [Gemma Terms of Use](https://ai.google.dev/gemma/terms).
+Known weak spots: numbers written with irregular grouping ("1111 386,40" is read as two numbers), Roman numerals in
+running text, and Latin words the model has not seen. The Gemma verbalizer of 0.2 still loads from an existing
+bundle (`ct2_models/gemma-verbalizer-ct2-int8`); it is no longer downloaded.
 
 ---
 

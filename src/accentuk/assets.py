@@ -151,7 +151,7 @@ def download_assets(
             # Copy CT2 light models if present
             ct2_source = Path(os.environ.get("ACCENTUK_LOCAL_CT2", "/nonexistent"))
             if ct2_source.is_dir():
-                for ct2_name in ("stress-model-ct2-int8", "tok-v5-ct2-int8", "verbalizer-ct2-int8", "gemma-verbalizer-ct2-int8"):
+                for ct2_name in ("stress-model-ct2-int8", "tok-v5-ct2-int8", "verbalizer-ct2-int8", "gemma-verbalizer-ct2-int8", "verbalizer-spans-ct2-int8"):
                     src_ct2 = ct2_source / ct2_name
                     if src_ct2.is_dir():
                         shutil.copytree(src_ct2, staging_dir / ct2_name, dirs_exist_ok=True)

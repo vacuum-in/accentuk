@@ -1,4 +1,4 @@
-"""Verbalization: Gemma-3-270M on CTranslate2 (default), Marian MT on PyTorch or CTranslate2, passthrough."""
+"""Verbalization: span-to-span Marian on CTranslate2 (default), Gemma-3-270M, whole-sentence Marian, passthrough."""
 
 from __future__ import annotations
 
@@ -234,6 +234,51 @@ class CT2GemmaVerbalizer:
         return [o if o is not None else "" for o in outputs]
 
 
+class CT2SpanVerbalizer:
+    """Span-to-span Marian (aloudreader/marian-uk-verbalizer-spans-ct2-int8). The spans that may need reading are found
+    from the shape of the characters (`accentuk.spans`); the model sees the sentence with one span marked and writes
+    only that span, and everything outside the spans is copied from the input, so prose is never rewritten."""
+
+    name = "ct2_spans"
+    max_source_tokens = 100_000  # the model reads a window around each span, never the whole text
+
+    def __init__(self, checkpoint: Path | str, *, device: str = "cpu", compute_type: str = "int8",
+                 batch_size: int = 32) -> None:
+        import ctranslate2
+        from transformers import MarianTokenizer
+
+        ckpt_path = Path(checkpoint)
+        if not (ckpt_path / "model.bin").is_file():
+            raise FileNotFoundError(f"No CTranslate2 model.bin found at {ckpt_path}")
+        self.batch_size = batch_size
+        self.tokenizer = MarianTokenizer.from_pretrained(ckpt_path, local_files_only=True)
+        self.translator = ctranslate2.Translator(str(ckpt_path), device=device, compute_type=compute_type)
+
+    def count_tokens(self, text: str) -> int:
+        return len(text.split())
+
+    def verbalize(self, texts: list[str]) -> list[str]:
+        from .spans import assemble, detect_spans, model_input
+
+        spans = [detect_spans(t) for t in texts]
+        inputs = [self.tokenizer.convert_ids_to_tokens(
+                      self.tokenizer(model_input(t, sp), truncation=True, max_length=192)["input_ids"])
+                  for t, sps in zip(texts, spans) for sp in sps]
+        outputs: list[str] = []
+        for start in range(0, len(inputs), self.batch_size):
+            results = self.translator.translate_batch(
+                inputs[start:start + self.batch_size],
+                beam_size=1,
+                max_decoding_length=96,
+                min_decoding_length=0,  # a span may be read as nothing (a footnote mark)
+                suppress_sequences=[["<s>"]],  # this export starts decoding from <s>
+            )
+            outputs.extend(self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
+                                                 skip_special_tokens=True) for r in results)
+        it = iter(outputs)
+        return [assemble(t, sps, [next(it) for _ in sps]) for t, sps in zip(texts, spans)]
+
+
 def _load_helper(path: Path, attr: str):
     if not path.is_file():
         log.warning("Verbalizer helper %s is missing; its preprocessing step is skipped.", path.name)
@@ -256,11 +301,18 @@ def load_verbalizer(
     mode: str = "auto",
     device: str = "cpu",
     batch_size: int | None = None,
-) -> CT2GemmaVerbalizer | MarianVerbalizer | CT2MarianVerbalizer | PassthroughVerbalizer:
-    """Load verbalizer based on requested mode and available assets. Gemma (CT2) serves both modes when present."""
+) -> CT2SpanVerbalizer | CT2GemmaVerbalizer | MarianVerbalizer | CT2MarianVerbalizer | PassthroughVerbalizer:
+    """Load verbalizer based on requested mode and available assets. The span model (CT2) serves both modes when
+    present, then Gemma (CT2), then the whole-sentence Marian models."""
     if not checkpoint:
         return PassthroughVerbalizer()
     ckpt_path = Path(checkpoint)
+    if (ckpt_path / "model.bin").is_file() and (ckpt_path / "spans.py").is_file():
+        try:
+            return CT2SpanVerbalizer(ckpt_path, device=device, batch_size=batch_size or 32)
+        except Exception as err:
+            log.warning("Failed to load the span verbalizer: %s", err)
+            return PassthroughVerbalizer()
     if _is_gemma(ckpt_path):
         try:
             return CT2GemmaVerbalizer(ckpt_path, device=device, batch_size=batch_size or 1)

@@ -12,6 +12,7 @@ from .route import needs_verbalization
 from .segment import Chunk, fit_to_window, join, split_sentences
 from .text import StressToken
 from .verbalize import (
+    CT2SpanVerbalizer,
     CT2GemmaVerbalizer,
     CT2MarianVerbalizer,
     MarianVerbalizer,
@@ -55,9 +56,11 @@ class Frontend:
         self.asset_dir = self.engine.asset_dir
         self._closed = False
 
-        self.verbalizer: CT2GemmaVerbalizer | MarianVerbalizer | CT2MarianVerbalizer | PassthroughVerbalizer
+        self.verbalizer: CT2SpanVerbalizer | CT2GemmaVerbalizer | MarianVerbalizer | CT2MarianVerbalizer | PassthroughVerbalizer
         if verbalize:
             candidates = [
+                self.asset_dir / "ct2_models" / "verbalizer-spans-ct2-int8",
+                self.asset_dir / "verbalizer-spans-ct2-int8",
                 self.asset_dir / "ct2_models" / "gemma-verbalizer-ct2-int8",
                 self.asset_dir / "gemma-verbalizer-ct2-int8",
                 self.asset_dir / "verbalizer-ct2-int8",
