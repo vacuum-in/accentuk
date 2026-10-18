@@ -18,7 +18,7 @@ import marisa_trie
 from .errors import AssetError
 from .normalizer import lookup_key
 
-DEFAULT_SUPPLEMENTARY = (5, 7, 9, 10, 12, 13, 15)
+DEFAULT_SUPPLEMENTARY = (5, 7, 9, 10, 12, 13, 16)
 DEFAULT_REVIEWED = (12, 13)
 DEFAULT_EXCLUSIVE = (13,)
 SCHEMA_VERSION = 1

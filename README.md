@@ -123,17 +123,18 @@ accentuk prepare "О 7:45 ранку 3 квітня потяг № 12 прибу
 
 ## Accuracy
 
-Measured on 2026-10-13 with the same benchmarks as the service (`vacuum-in/accentuk-api`), word accuracy:
+Measured on 2026-10-18 with the same benchmarks as the service (`vacuum-in/accentuk-api`), word accuracy:
 
-| test | service | full mode | light mode |
-|---|---:|---:|---:|
-| 200 most frequent ambiguous forms of Common Voice uk, stress heard in the recordings | 95.88% | 95.88% | 95.54% |
-| modern-text gold, 3,887 words (all / reviewed lines) | 98.07% / 96.83% | 98.07% / 96.83% | 97.63% / 96.25% |
-| [lang-uk stress benchmark](https://github.com/lang-uk/ukrainian-tts-preprocessing), words / heteronyms | 96.10% / 84.62% | 96.10% / 84.62% | 96.10% / 84.62% |
+| test | service / full mode | light mode |
+|---|---:|---:|
+| 200 most frequent ambiguous forms of Common Voice uk, stress heard in the recordings | 95.88% | 95.55% |
+| words the lexicon lacks, stress heard in 3,018 Common Voice recordings | 81.05% | 81.05% |
+| modern-text gold, 3,887 words (all / reviewed lines) | 97.97% / 96.54% | 97.53% / 95.96% |
+| [lang-uk stress benchmark](https://github.com/lang-uk/ukrainian-tts-preprocessing), words / heteronyms | 96.13% / 84.62% | 96.13% / 84.62% |
 
-The lexicon `accentuk download` installs (`lexicon-v2`, built from the public `data-v2` of accentuk-api) is the
-service's, including the 51,298-word dictionary of stress heard in recordings; the light-mode column was measured on a
-clean download of it.
+The lexicon `accentuk download` installs (`lexicon-v3`, built from the public `data-v3` of accentuk-api) is the
+service's, including the 99,470-word dictionary of stress heard in recordings (v5: words heard only on YouTube are
+LLM-checked, misheard ones left out); the light-mode column was measured on a clean download of it.
 
 Full mode gives the service's answers. Light mode differs on 34 lang-uk tokens: 18 where the small spaCy tagger
 parses differently from the transformer one, the rest from INT8 quantization (the INT8 cross-encoder picks

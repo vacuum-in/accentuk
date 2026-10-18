@@ -6,7 +6,7 @@ from .frontend import Frontend, FrontendResult
 from .lexicon import Lexicon
 from .text import StressToken
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     "Accentor",
     "AccentukError",

@@ -5,10 +5,10 @@
   "normalization_version": "ukstress-nfd-v1",
   "schema_version": 1,
   "data_release": {
-    "url_base": "https://github.com/vacuum-in/accentuk-api/releases/download/data-v2",
+    "url_base": "https://github.com/vacuum-in/accentuk-api/releases/download/data-v3",
     "files": {
       "lexicon-serving.tar": {
-        "sha256": "b94dcdf833bf40938a1fa4c4110964227995a7c4e3818918c2ea15c1dd22d891"
+        "sha256": "44c8c809386fe22703a139919f5b78f80d4c963d970bf848ec375007d5db12f2"
       },
       "lexicon-assets.tar.gz": {
         "sha256": "e65def53d4fc95d95bbd8c18142bd1f58b7af0eba2db3eef79794907cdf18cdc"
@@ -66,8 +66,8 @@
     }
   },
   "lexicon_bundle": {
-    "url": "https://github.com/vacuum-in/accentuk/releases/download/lexicon-v2/accentuk-lexicon-v2.tar.gz",
-    "sha256": "73b068ab20d2884cbe81a479ec62a2a98d093b026bda5e4a61e3605816004220"
+    "url": "https://github.com/vacuum-in/accentuk/releases/download/lexicon-v3/accentuk-lexicon-v3.tar.gz",
+    "sha256": "b5a65ca2eeb00a134d9da7abd87579185c71cc6f60d1dbd4fb15d082db17927d"
   },
   "hub_models": {
     "crossencoder_ct2": {
