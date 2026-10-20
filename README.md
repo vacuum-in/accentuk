@@ -159,17 +159,23 @@ a 52.7M-parameter Marian model that reads **one span at a time**: the parts of a
 (numbers, dates, money, units, Roman numerals, abbreviations, Latin words, symbols, footnote marks) are found from the
 shape of the characters (`accentuk.spans`), the model sees the sentence with one span marked and writes only that
 span, and everything outside the spans is copied from the input. Ordinary prose is never rewritten, and footnote
-marks ("Жид[93]") are not read. Spoken match (case and punctuation are not heard):
+marks ("Жид[93]") are not read. From 0.3.2 the model is E69, trained further on business and technical text, and
+the detector also marks "÷", weekday ranges ("пн–пт") and two-letter words with no vowel ("пт"). Spoken match (case
+and punctuation are not heard; a line counts only if all of it is right), measured 2026-10-21:
 
-| test | span Marian (0.3) | Gemma-3-270M (0.2) | whole-sentence Marian E54 |
-|---|---:|---:|---:|
-| held-out splits of [`skypro1111/uk-text-normalization`](https://huggingface.co/datasets/skypro1111/uk-text-normalization), 3,619 rows | 89.0% | ~90.2% | 89.5% |
-| 1,102 audiobook sentences with digits, Latin, abbreviations or symbols (references by Qwen3.8-27B) | **70.1%** | 58.9% | 62.6% |
-| audiobook sentences with a word outside the spans altered | **0.45%** | 8.1% | 5.0% |
-| time per sentence, CPU | 4-10 ms | 72 ms | 10 ms |
+| test | E69 (0.3.2) | E60 (0.3.0-0.3.1) |
+|---|---:|---:|
+| held-out splits of [`skypro1111/uk-text-normalization`](https://huggingface.co/datasets/skypro1111/uk-text-normalization), 3,619 rows | 88.3% | 88.9% |
+| 1,323 audiobook sentences with digits, Latin, abbreviations or symbols (five-judge references with manual review) | **61.9%** | 59.6% |
+| business and technical text, 66 lines (used while building E66-E69's data) | **90.9%** | 47.0% |
+| unseen business text, 41 lines, judged blind by an LLM | **27/41** | 21/41 |
+| time per sentence, CPU | 4-10 ms | 4-10 ms |
 
-Known weak spots: numbers written with irregular grouping ("1111 386,40" is read as two numbers), Roman numerals in
-running text, and Latin words the model has not seen. The Gemma verbalizer of 0.2 still loads from an existing
+The audiobook references were redone in October 2026, so E60's 70.1% of 0.3.0 (older references) and the numbers
+above are not comparable.
+
+Known weak spots: Unicode fractions, powers and indices ("½", "10⁻³", "x²"), machine codes (URLs, e-mails, IPv6 and
+MAC addresses, VINs, long identifiers), Roman numerals in running text, and Latin words the model has not seen. The Gemma verbalizer of 0.2 still loads from an existing
 bundle (`ct2_models/gemma-verbalizer-ct2-int8`); it is no longer downloaded.
 
 ---

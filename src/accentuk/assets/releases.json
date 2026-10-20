@@ -114,7 +114,7 @@
     },
     "verbalizer_spans_ct2": {
       "repo": "aloudreader/marian-uk-verbalizer-spans-ct2-int8",
-      "revision": "4ed2217f4269552b15c20afa7159315481bac47b",
+      "revision": "58ec4e11c7e99fefbd56c4c16c353e9026db3ef6",
       "target": "ct2_models/verbalizer-spans-ct2-int8",
       "set": [
         "light-tts",

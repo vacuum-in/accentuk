@@ -42,6 +42,10 @@ ATOMS = re.compile(
         # capitals inside a word or standing alone: "ДТП", "СС", "ВІП-секторі", one capital before a period
         r"[" + CYR_UP + r"]{2,}(?:-[" + CYR + r"]+)?",
         r"(?<![" + CYR + r"])[" + CYR_UP + r"]\.",
+        # two two-letter abbreviations joined by a dash with no spaces: "пн–пт", "вт—сб" (a hyphen joins words)
+        r"(?<![" + CYR + APOS + r"])[а-яіїєґ]{2}[–—][а-яіїєґ]{2}(?![" + CYR + APOS + r"])",
+        # a two-letter word with no vowel is an abbreviation: "пт", "сб", "нд" (Ukrainian words have a vowel)
+        r"(?<![" + CYR + APOS + r"])[б-джзй-нп-тф-щьґ]{2}(?![" + CYR + APOS + r".])",
         # short lower-case abbreviations followed by more text: "т. ін.", "ст.", "обл.", "м."
         # (a chain like "т. ін." may end the sentence; a single short word before the final period is just a word)
         r"(?<![" + CYR + APOS + r"])[а-яіїєґ]{1,5}\.(?:\s?[а-яіїєґ]{1,5}\.)+",
@@ -55,7 +59,7 @@ ATOMS = re.compile(
         r"[#@][\w.]*\w",
         r"/[" + CYR + r"A-Za-z]{1,4}\.?(?![" + CYR + r"A-Za-z])",
         r"(?<![" + CYR + r"])[" + CYR_UP + r"][а-яіїєґ]{1,3}\.(?=\s?[" + CYR + r"\d§№])",
-        r"[%‰№§&@#*+=<>/\\|~^°×·•→←⇒∞√∑≈≠≤≥±©®™]",
+        r"[%‰№§&@#*+=<>/\\|~^°×÷·•→←⇒∞√∑≈≠≤≥±©®™]",
     ])
 )
 # a digit glued to the end of a Cyrillic word is a footnote mark ("референдарій9")
