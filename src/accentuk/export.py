@@ -18,9 +18,9 @@ import marisa_trie
 from .errors import AssetError
 from .normalizer import lookup_key
 
-DEFAULT_SUPPLEMENTARY = (5, 7, 9, 10, 12, 13, 16)
+DEFAULT_SUPPLEMENTARY = (5, 7, 9, 10, 12, 13, 16, 18, 19)
 DEFAULT_REVIEWED = (12, 13)
-DEFAULT_EXCLUSIVE = (13,)
+DEFAULT_EXCLUSIVE = (13, 18)
 SCHEMA_VERSION = 1
 NORMALIZATION_VERSION = "ukstress-nfd-v1"
 

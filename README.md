@@ -123,18 +123,23 @@ accentuk prepare "О 7:45 ранку 3 квітня потяг № 12 прибу
 
 ## Accuracy
 
-Measured on 2026-10-18 with the same benchmarks as the service (`vacuum-in/accentuk-api`), word accuracy:
+Measured on 2026-10-22 with the same benchmarks as the service (`vacuum-in/accentuk-api`), word accuracy:
 
 | test | service / full mode | light mode |
 |---|---:|---:|
-| 200 most frequent ambiguous forms of Common Voice uk, stress heard in the recordings | 95.88% | 95.55% |
-| words the lexicon lacks, stress heard in 3,018 Common Voice recordings | 81.05% | 81.05% |
-| modern-text gold, 3,887 words (all / reviewed lines) | 97.97% / 96.54% | 97.53% / 95.96% |
-| [lang-uk stress benchmark](https://github.com/lang-uk/ukrainian-tts-preprocessing), words / heteronyms | 96.13% / 84.62% | 96.13% / 84.62% |
+| 200 most frequent ambiguous forms of Common Voice uk, stress heard in the recordings | 95.88% | 95.54% |
+| words the lexicon lacks, stress heard in 3,018 Common Voice recordings | 81.88% | 81.88% |
+| modern-text gold, 3,887 words (all / reviewed lines) | 97.94% / 96.54% | 97.50% / 95.96% |
+| [lang-uk stress benchmark](https://github.com/lang-uk/ukrainian-tts-preprocessing), words / heteronyms | 96.07% / 84.62% | 96.07% / 84.62% |
 
-The lexicon `accentuk download` installs (`lexicon-v3`, built from the public `data-v3` of accentuk-api) is the
+The lexicon `accentuk download` installs (`lexicon-v4`, built from the public `data-v4` of accentuk-api) is the
 service's, including the 99,470-word dictionary of stress heard in recordings (v5: words heard only on YouTube are
-LLM-checked, misheard ones left out); the light-mode column was measured on a clean download of it.
+LLM-checked, misheard ones left out) and, new in v4, 184 lexicon forms re-stressed as audiobook narrators say them
+(heard 10+ times in 3+ books, 90%+ agreeing, never as a name): 118 replace a reading the narrators never use
+("подоро́жі" -> "по́дорожі", "ко́рисне" -> "кори́сне", "пе́редам" -> "переда́м"), 66 are added beside a reading
+they use rarely ("сті́ну" beside "стіну́", "на стіну́"). The few benchmark words that changed are such variants
+(gold "ко́рисною", lang-uk "за́грава", "зе́рно", "стіну́", "зиму́", "сокі́в"). The light-mode column was measured
+on this lexicon with the package's engine.
 
 Full mode gives the service's answers. Light mode differs on 34 lang-uk tokens: 18 where the small spaCy tagger
 parses differently from the transformer one, the rest from INT8 quantization (the INT8 cross-encoder picks
